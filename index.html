@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Judge Case Management System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{font-family:Arial;background:#eef;margin:0}
+header{background:#243b6b;color:#fff;padding:10px;text-align:center}
+section{background:#fff;margin:10px;padding:10px;border-radius:8px}
+input,select,textarea,button{width:100%;padding:8px;margin:5px 0}
+button{background:#243b6b;color:#fff;border:none;border-radius:4px}
+button:hover{opacity:.9}
+.case{border-left:6px solid #243b6b;padding:8px;margin:8px 0}
+.warn{border-left-color:orange;animation:blink 1s infinite}
+.danger{border-left-color:red;animation:blink .6s infinite}
+@keyframes blink{50%{background:#ffecec}}
+.hidden{display:none}
+small{color:gray}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>⚖️ Judge Case Management System</h2>
+</header>
+
+<!-- LOGIN -->
+<section id="login">
+<h3>Judge Login</h3>
+<input id="pin" placeholder="Enter Judge PIN">
+<button onclick="login()">Login</button>
+<p><small>Demo PIN: 1234</small></p>
+</section>
+
+<!-- APP -->
+<section id="app" class="hidden">
+
+<h3>Register New Case</h3>
+
+<input id="title" placeholder="Case Title">
+
+<select id="type">
+<option>Civil</option>
+<option>Criminal</option>
+<option>Family</option>
+<option>Property</option>
+</select>
+
+<select id="status">
+<option>Pending</option>
+<option>Hearing</option>
+<option>Judgment</option>
+<option>Closed</option>
+</select>
+
+<select id="priority">
+<option>Normal</option>
+<option>High</option>
+</select>
+
+<textarea id="priorityReason" placeholder="Priority Reason (required if High)"></textarea>
+
+<input type="date" id="deadline">
+
+<button onclick="addCase()">Register Case</button>
+
+<hr>
+
+<h3>🔍 Search Case</h3>
+<input placeholder="Search by Case ID or Title" oninput="search(this.value)">
+
+<hr>
+
+<h3>🚨 Today Needs Attention</h3>
+<div id="today"></div>
+
+<hr>
+
+<h3>📂 All Cases</h3>
+<div id="cases"></div>
+
+<hr>
+
+<button onclick="toggleRead()">Court Session Mode</button>
+<button onclick="window.print()">Print</button>
+<button onclick="clearAll()">Clear All Data</button>
+
+</section>
+
+<script>
+let cases = JSON.parse(localStorage.getItem("cases") || "[]");
+let readOnly=false;
+
+function login(){
+ if(pin.value==="1234"){
+  login.style.display="none";
+  app.classList.remove("hidden");
+  render();
+ } else alert("Invalid PIN");
+}
+
+function addCase(){
+ if(readOnly) return alert("Court Session Mode ON");
+ if(priority.value==="High" && !priorityReason.value.trim())
+  return alert("Priority reason required");
+
+ let id="CASE-"+(cases.length+1).toString().padStart(4,"0");
+
+ cases.push({
+  id,
+  title:title.value,
+  type:type.value,
+  status:status.value,
+  priority:priority.value,
+  priorityReason:priorityReason.value,
+  deadline:deadline.value,
+  registered:new Date().toLocaleDateString(),
+  notes:"",
+  delay:"",
+  evidence:[],
+  witnesses:[],
+  hearings:[],
+  linked:""
+ });
+
+ save(); render();
+}
+
+function render(list=cases){
+ casesDiv.innerHTML=""; today.innerHTML="";
+ let now=new Date();
+
+ list.forEach(c=>{
+  let diff=Math.ceil((new Date(c.deadline)-now)/86400000);
+  let div=document.createElement("div");
+  div.className="case";
+  if(diff<0)div.classList.add("danger");
+  else if(diff<=3)div.classList.add("warn");
+
+  div.innerHTML=`
+<b>${c.id}</b> - ${c.title}<br>
+Type: ${c.type} | Status: ${c.status}<br>
+Priority: ${c.priority}<br>
+Registered: ${c.registered}<br>
+Deadline: ${c.deadline} (${diff} days)<br>
+
+<textarea placeholder="Judge Notes"
+onchange="c.notes=this.value;save()">${c.notes}</textarea>
+
+<textarea placeholder="Delay Reason"
+onchange="c.delay=this.value;save()">${c.delay}</textarea>
+
+<b>Evidence</b>
+<input placeholder="Add Evidence"
+onchange="c.evidence.push(this.value);this.value='';save();render()">
+<ul>${c.evidence.map(e=>`<li>${e}</li>`).join("")}</ul>
+
+<b>Witness</b>
+<input placeholder="Add Witness"
+onchange="c.witnesses.push(this.value);this.value='';save();render()">
+<ul>${c.witnesses.map(w=>`<li>${w}</li>`).join("")}</ul>
+
+<b>Link Case</b>
+<input placeholder="Related / Appeal Case ID"
+value="${c.linked}"
+onchange="c.linked=this.value;save()">
+`;
+
+  casesDiv.appendChild(div);
+  if(diff<=0) today.appendChild(div.cloneNode(true));
+ });
+}
+
+function search(q){
+ q=q.toLowerCase();
+ render(cases.filter(c=>c.id.toLowerCase().includes(q)||c.title.toLowerCase().includes(q)));
+}
+
+function toggleRead(){
+ readOnly=!readOnly;
+ alert(readOnly?"Court Session Mode ON":"Edit Mode ON");
+}
+
+function save(){
+ localStorage.setItem("cases",JSON.stringify(cases));
+}
+
+function clearAll(){
+ if(confirm("Clear all data?")){
+  localStorage.clear();location.reload();
+ }
+}
+</script>
+
+</body>
+</html>
